@@ -7,16 +7,15 @@
 <br/>
 
 [![License](https://img.shields.io/github/license/Anankke/SSPanel-Uim?style=flat-square)](https://github.com/Anankke/SSPanel-Uim/blob/dev/LICENSE)
-[![Travis Build Status](https://img.shields.io/travis/Anankke/SSPanel-UIM/master.svg?style=flat-square)](https://travis-ci.org/Anankke/SSPanel-Uim)
 ![GitHub repo size](https://img.shields.io/github/repo-size/anankke/sspanel-uim?style=flat-square&color=328657)
 [![Telegram Channel](https://img.shields.io/badge/news-t.me%2Fsspanel_uim-0d86d7?style=flat-square)](https://t.me/sspanel_uim)
 [![Telegram Chat](https://img.shields.io/badge/chat-t.me%2Fssunion-0d86d7?style=flat-square)](https://t.me/ssunion)
 
-[演示站点](https://sspanel.host) | [使用文档](https://wiki.sspanel.host) | [更新日志](https://github.com/Anankke/SSPanel-Uim/releases) | [配套SS/SSR后端](https://github.com/Anankke/shadowsocks-mod) | [Telegram 频道](https://t.me/sspanel_uim) | [Telegram 水群](https://t.me/ssunion) | [API 文档](https://marcosteam.gitbook.io/sspanel-api/)
+[演示站点](https://demo.sspanel.org/) | [使用文档](https://wiki.sspanel.host) | [更新日志](https://github.com/Anankke/SSPanel-Uim/releases) | [配套SS/SSR后端](https://github.com/Anankke/shadowsocks-mod) | [Telegram 频道](https://t.me/sspanel_uim) | [Telegram 水群](https://t.me/ssunion) | [API 文档](https://marcosteam.gitbook.io/sspanel-api/)
 
 ## 简介
 
-SSPanel UIM 是一款专为 Shadowsocks / ShadowsocksR / V2Ray 设计的多用户管理面板，基于 ss-panel-v3-mod 开发。
+SSPanel UIM 是一款专为 Shadowsocks / ShadowsocksR / V2Ray / Trojan 设计的多用户管理面板，基于 ss-panel-v3-mod 开发。
 
 ## 特性
 
@@ -42,7 +41,7 @@ SSPanel UIM 支持安装在 LNMP、宝塔面板、Plesk、Oneinstack 等集成�
 
 ## 演示
 
-[演示站](https://sspanel.host) 每天更新 `dev` 分支最新源码。
+[演示站](https://demo.sspanel.org/) 每天更新 `dev` 分支最新源码。
 
 ```
 账号：admin
@@ -91,16 +90,14 @@ SSPanel UIM 离不开所有 [贡献代码](https://github.com/Anankke/SSPanel-Ui
 [**dumplin**](https://github.com/dumplin233)
 
 - 码支付对接 + 码支付当面付二合一
-- 为面板加入 AFF 链接功能
+- 邀请链接
 - 商品增加限速和限制 ip 属性
 - 多端口订阅
-- 解决用户列表加载缓慢历史遗留问题
 
 [**RinSAMA**](https://github.com/mxihan)
 
 - 整理分类 config.php
 - 美观性调整
-- 客服系统优化
 
 [**miku**](https://github.com/xcxnig)
 
@@ -114,7 +111,7 @@ SSPanel UIM 离不开所有 [贡献代码](https://github.com/Anankke/SSPanel-Ui
 
 [**Indexyz**](https://github.com/Indexyz)
 
-- 为面板增加 v2Ray 功能
+- 为面板增加 V2Ray 功能
 
 [**NeverBehave**](https://github.com/NeverBehave)
 
@@ -122,22 +119,15 @@ SSPanel UIM 离不开所有 [贡献代码](https://github.com/Anankke/SSPanel-Ui
 
 [**CGDF**](https://github.com/TheCGDF)
 
-- xcat 一键 update
 - 用户列表分页加载
-
-[**CHEN**](https://github.com/ChenSee)
-
-- 免签约支付宝与微信，自带监听，不需第三方软件，直接到个人账户
 
 [**laurieryayoi**](https://github.com/laurieryayoi)
 
 - 重做美化UI（~~援交~~圆角化）
-- 新版 Vue(SPA) 版界面
 - 重写节点列表，支持分级显示所有级别节点
 
 [**Sukka**](https://github.com/SukkaW)
 
-- Travis CI 持续集成
 - 单元测试
 - 全站 JavaScript 重写
 - 新版 Wiki 的搭建和维护
@@ -168,9 +158,13 @@ SSPanel UIM 离不开所有 [贡献代码](https://github.com/Anankke/SSPanel-Ui
 
 #### galaxychuck
 
-- [moecloud-美國VPS](https://lite.moe/aff.php?aff=56)
+- [Moecloud-美國VPS](https://lite.moe/aff.php?aff=56)
 
 #### laurieryayoi
 
-[dmit-美国香港服务器](https://www.dmit.io/aff.php?aff=912)
+- [Dmit-美国香港服务器](https://www.dmit.io/aff.php?aff=912)
+
+#### M1Screw
+
+- [Vultr-不用我多解釋了吧](https://www.vultr.com/?ref=8403120-6G)
 

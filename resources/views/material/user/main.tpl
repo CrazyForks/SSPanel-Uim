@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="/theme/material/css/user.min.css">
     <!-- jquery -->
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0"></script>
     <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs@master/qrcode.min.js"></script>
     <!-- js -->
     <script src="/assets/js/fuck.min.js"></script>
@@ -78,14 +78,11 @@
                         <li>
                             <a href="/user/edit"><i class="icon icon-lg">sync_problem</i>&nbsp;资料编辑</a>
                         </li>
-                        <li>
-                            <a href="/user/trafficlog"><i class="icon icon-lg">hourglass_empty</i>&nbsp;流量记录</a>
-                        </li>
-                    {if $config['subscribeLog']===true && $config['subscribeLog_show']===true}
+                        {if $config['subscribeLog']===true && $config['subscribeLog_show']===true}
                         <li>
                             <a href="/user/subscribe_log"><i class="icon icon-lg">important_devices</i>&nbsp;订阅记录</a>
                         </li>
-                    {/if}
+                        {/if}
                         {if $config['enable_ticket']===true}
                             <li>
                                 <a href="/user/ticket"><i class="icon icon-lg">question_answer</i>&nbsp;工单系统</a>
@@ -101,16 +98,7 @@
                             <a href="/user/node"><i class="icon icon-lg">airplanemode_active</i>&nbsp;节点列表</a>
                         </li>
                         <li>
-                            <a href="/user/relay"><i class="icon icon-lg">compare_arrows</i>&nbsp;中转规则</a>
-                        </li>
-                        <li>
-                            <a href="/user/lookingglass"><i class="icon icon-lg">visibility</i>&nbsp;延迟检测</a>
-                        </li>
-                        <li>
                             <a href="/user/announcement"><i class="icon icon-lg">announcement</i>&nbsp;网站公告</a>
-                        </li>
-                        <li>
-                            <a href="{if $config['use_this_doc'] === false}/user/tutorial{else}/doc/{/if}"><i class="icon icon-lg">start</i>&nbsp;使用教程</a>
                         </li>
                     </ul>
                     <a class="waves-attach" data-toggle="collapse" href="#ui_menu_detect">审计</a>
@@ -139,7 +127,7 @@
                             </li>
                         {/if}
                     </ul>
-                    {if $user->isAdmin()}
+                    {if $user->is_admin}
                         <a href="/admin"><i class="icon icon-lg">person_pin</i>&nbsp;管理面板</a>
                     {/if}
                     {if $can_backtoadmin}

@@ -7,7 +7,7 @@ namespace App\Models;
  *
  * @property-read   int     $id         id
  * @property        string  $name       Display name
- * @property        int     $type       If node display @todo Correct column name and type
+ * @property        bool    $type       If node display @todo Correct column name and type
  * @property        string  $server     Domain
  * @property        string  $method     Crypt method @deprecated
  * @property        string  $info       Infomation
@@ -34,12 +34,90 @@ class Node extends Model
         'traffic_rate'    => 'float',
         'mu_only'         => 'int',
         'sort'            => 'int',
+        'type'            => 'bool',
+        'node_heartbeat'  => 'int',
     ];
+
+    /**
+     * 节点是否显示和隐藏
+     */
+    public function type(): string
+    {
+        return $this->type ? '显示' : '隐藏';
+    }
+
+    /**
+     * 节点类型
+     */
+    public function sort(): string
+    {
+        switch ($this->sort) {
+            case 0:
+                $sort = 'Shadowsocks';
+                break;
+            case 9:
+                $sort = 'Shadowsocks - 单端口多用户';
+                break;
+            case 11:
+                $sort = 'V2Ray 节点';
+                break;
+            case 13:
+                $sort = 'Shadowsocks - V2Ray-Plugin&Obfs';
+                break;
+            case 14:
+                $sort = 'Trojan';
+                break;
+            default:
+                $sort = '系统保留';
+        }
+        return $sort;
+    }
+
+    /**
+     * 单端口多用户启用类型
+     */
+    public function mu_only(): string
+    {
+        switch ($this->mu_only) {
+            case -1:
+                $mu_only = '只启用普通端口';
+                break;
+            case 0:
+                $mu_only = '单端口多用户与普通端口并存';
+                break;
+            case 1:
+                $mu_only = '只启用单端口多用户';
+                break;
+            default:
+                $mu_only = '错误类型';
+        }
+        return $mu_only;
+    }
+
+    /**
+     * 节点对应的国旗
+     *
+     * @return string [国家].png OR unknown.png
+     */
+    public function get_node_flag(): string
+    {
+        $regex   = $_ENV['flag_regex'];
+        $matches = [];
+        preg_match($regex, $this->name, $matches);
+        return isset($matches[0]) ? $matches[0] . '.png' : 'unknown.png';
+    }
+
+    /**
+     * 节点最后活跃时间
+     */
+    public function node_heartbeat(): string
+    {
+        return date('Y-m-d H:i:s', $this->node_heartbeat);
+    }
 
     public function getLastNodeInfoLog()
     {
-        $id = $this->attributes['id'];
-        $log = NodeInfoLog::where('node_id', $id)->orderBy('id', 'desc')->first();
+        $log = NodeInfoLog::where('node_id', $this->id)->orderBy('id', 'desc')->first();
         if ($log == null) {
             return null;
         }
@@ -57,131 +135,142 @@ class Node extends Model
 
     public function getNodeUpRate()
     {
-        $id = $this->attributes['id'];
-        $log = NodeOnlineLog::where('node_id', $id)->where('log_time', '>=', time() - 86400)->count();
-
+        $log = NodeOnlineLog::where('node_id', $this->id)->where('log_time', '>=', time() - 86400)->count();
         return $log / 1440;
     }
 
     public function getNodeLoad()
     {
-        $id = $this->attributes['id'];
-        $log = NodeInfoLog::where('node_id', $id)->orderBy(
-            'id',
-            'desc'
-        )->whereRaw('`log_time`%1800<60')->limit(48)->get();
+        $log = NodeInfoLog::where('node_id', $this->id)->orderBy('id', 'desc')->whereRaw('`log_time`%1800<60')->limit(48)->get();
         return $log;
     }
 
     public function getNodeAlive()
     {
-        $id = $this->attributes['id'];
-        $log = NodeOnlineLog::where('node_id', $id)->orderBy(
-            'id',
-            'desc'
-        )->whereRaw('`log_time`%1800<60')->limit(48)->get();
+        $log = NodeOnlineLog::where('node_id', $this->id)->orderBy('id', 'desc')->whereRaw('`log_time`%1800<60')->limit(48)->get();
         return $log;
     }
 
-    public function getOnlineUserCount()
+    /**
+     * 获取节点 5 分钟内最新的在线人数
+     */
+    public function get_node_online_user_count(): int
     {
-        $id = $this->attributes['id'];
-        $log = NodeOnlineLog::where('node_id', $id)->where('log_time', '>', time() - 300)->orderBy(
-            'id',
-            'desc'
-        )->first();
+        if (in_array($this->sort, [9])) {
+            return -1;
+        }
+        $log = NodeOnlineLog::where('node_id', $this->id)->where('log_time', '>', time() - 300)->orderBy('id', 'desc')->first();
         if ($log == null) {
             return 0;
         }
         return $log->online_user;
     }
 
-    public function getSpeedtest()
+    /**
+     * 获取节点在线状态
+     *
+     * @return int 0 = new node OR -1 = offline OR 1 = online
+     */
+    public function get_node_online_status(): int
     {
-        $id = $this->attributes['id'];
-        $log = Speedtest::where('nodeid', $id)->orderBy('datetime', 'desc')->first();
+        // 类型 9 或者心跳为 0
+        if ($this->node_heartbeat == 0 || in_array($this->sort, [9])) {
+            return 0;
+        }
+        return $this->node_heartbeat + 300 > time() ? 1 : -1;
+    }
+
+    /**
+     * 获取节点最新负载
+     */
+    public function get_node_latest_load(): int
+    {
+        $log = NodeInfoLog::where('node_id', $this->id)->where('log_time', '>', time() - 300)->orderBy('id', 'desc')->first();
         if ($log == null) {
-            return '暂无数据';
+            return -1;
         }
-
-        return '电信延迟：' . $log->telecomping . ' 下载：' . $log->telecomeupload . ' 上传：' . $log->telecomedownload . '<br>
-		联通延迟：' . $log->unicomping . ' 下载：' . $log->unicomupload . ' 上传：' . $log->unicomdownload . '<br>
-		移动延迟：' . $log->cmccping . ' 下载：' . $log->cmccupload . ' 上传：' . $log->cmccdownload . '<br>定时测试，仅供参考';
+        return (explode(' ', $log->load))[0] * 100;
     }
 
-    public function getSpeedtestResult()
+    /**
+     * 获取节点最新负载文本信息
+     */
+    public function get_node_latest_load_text(): string
     {
-        $id = $this->attributes['id'];
-        $log = Speedtest::where('nodeid', $id)->orderBy('id', 'desc')->limit(48)->get();
-        if ($log == null) {
-            return '暂无数据';
-        }
-
-        return $log;
+        $load = $this->get_node_latest_load();
+        return $load == -1 ? 'N/A' : $load . '%';
     }
 
-    public function getTrafficFromLogs()
+    /**
+     * 获取节点速率文本信息
+     */
+    public function get_node_speedlimit(): string
     {
-        $id = $this->attributes['id'];
-
-        $traffic = TrafficLog::where('node_id', $id)->sum('u') + TrafficLog::where('node_id', $id)->sum('d');
-
-        if ($traffic == 0) {
-            return '暂无数据';
+        if ($this->node_speedlimit == 0.0) {
+            return 0;
+        } elseif ($this->node_speedlimit >= 1024.00) {
+            return round($this->node_speedlimit / 1024.00, 1) . 'Gbps';
+        } else {
+            return $this->node_speedlimit . 'Mbps';
         }
-
-        return Tools::flowAutoShow($traffic);
     }
 
-    public function isNodeOnline()
+    /**
+     * 节点是在线的
+     */
+    public function isNodeOnline(): ?bool
     {
-        $delay = 300;
         if ($this->node_heartbeat === 0) {
             return false;
         }
-
-        $nodeSort = [1, 2, 5, 9, 999];
-        if (in_array($this->sort, $nodeSort)) {
-            return null;
-        }
-
-        return ($this->node_heartbeat > time() - $delay);
+        return $this->node_heartbeat > time() - 300;
     }
 
-    public function isNodeTrafficOut()
+    /**
+     * 节点流量已耗尽
+     */
+    public function isNodeTrafficOut(): bool
     {
-        $node_bandwidth = $this->attributes['node_bandwidth'];
-        $node_bandwidth_limit = $this->attributes['node_bandwidth_limit'];
-
-        return !($node_bandwidth_limit == 0 || $node_bandwidth < $node_bandwidth_limit);
+        return !($this->node_bandwidth_limit == 0 || $this->node_bandwidth < $this->node_bandwidth_limit);
     }
 
-    public function isNodeAccessable()
+    /**
+     * 节点是可用的，即流量未耗尽并且在线
+     */
+    public function isNodeAccessable(): bool
     {
         return $this->isNodeTrafficOut() == false && $this->isNodeOnline() == true;
     }
 
-    public function changeNodeIp($server_name)
+    /**
+     * 更新节点 IP
+     *
+     * @param string $server_name
+     */
+    public function changeNodeIp(string $server_name): bool
     {
         $ip = gethostbyname($server_name);
         if ($ip == '') {
             return false;
         }
-        $this->attributes['node_ip'] = $ip;
+        $this->node_ip = $ip;
         return true;
     }
 
-    public function getNodeIp()
+    /**
+     * 获取节点 IP
+     */
+    public function getNodeIp(): string
     {
-        $node_ip_str = $this->attributes['node_ip'];
+        $node_ip_str   = $this->node_ip;
         $node_ip_array = explode(',', $node_ip_str);
         return $node_ip_array[0];
     }
 
     /**
-     * 获取出口地址
+     * 获取出口地址 | 用于节点IP获取的地址
      */
-    public function getOutServer(): string
+    public function get_out_address(): string
     {
         return explode(';', $this->server)[0];
     }
@@ -189,16 +278,19 @@ class Node extends Model
     /**
      * 获取入口地址
      */
-    public function getServer(): string
+    public function get_entrance_address(): string
     {
-        $out = '';
-        $explode = explode(';', $this->attributes['server']);
-        if (in_array($this->attributes['sort'], [0, 10])) {
-            if (isset($explode[1]) && stripos($explode[1], 'server=') !== false) {
-                $out = URL::parse_args($explode[1])['server'];
+        if ($this->sort == 13) {
+            $server = Tools::ssv2Array($this->server);
+            return $server['add'];
+        }
+        $explode = explode(';', $this->server);
+        if (in_array($this->sort, [0]) && isset($explode[1])) {
+            if (stripos($explode[1], 'server=') !== false) {
+                return URL::parse_args($explode[1])['server'];
             }
         }
-        return ($out != '' ? $out : $explode[0]);
+        return $explode[0];
     }
 
     /**
@@ -208,7 +300,7 @@ class Node extends Model
      */
     public function getOffsetPort($port)
     {
-        return Tools::OutPort($this->attributes['server'], $this->attributes['name'], $port)['port'];
+        return Tools::OutPort($this->server, $this->name, $port)['port'];
     }
 
     /**
@@ -216,26 +308,12 @@ class Node extends Model
      *
      * @param User $user
      * @param int  $mu_port
-     * @param int  $relay_rule_id
      * @param int  $is_ss
      * @param bool $emoji
      */
-    public function getItem(User $user, int $mu_port = 0, int $relay_rule_id = 0, int $is_ss = 0, bool $emoji = false):? array
+    public function getItem(User $user, int $mu_port = 0, int $is_ss = 0, bool $emoji = false):? array
     {
-        $relay_rule = Relay::where('id', $relay_rule_id)
-            ->where(
-                static function ($query) use ($user) {
-                    $query->Where('user_id', '=', $user->id)
-                        ->orWhere('user_id', '=', 0);
-                }
-            )
-            ->orderBy('priority', 'DESC')
-            ->orderBy('id')
-            ->first();
         $node_name = $this->name;
-        if ($relay_rule != null) {
-            $node_name .= ' - ' . $relay_rule->dist_node()->name;
-        }
         if ($mu_port != 0) {
             $mu_user = User::where('port', '=', $mu_port)->where('is_multi_user', '<>', 0)->first();
             if ($mu_user == null) {
@@ -266,7 +344,7 @@ class Node extends Model
             $user = URL::getSSRConnectInfo($user);
             $return_array['type'] = 'ssr';
         }
-        $return_array['address']        = $this->getServer();
+        $return_array['address']        = $this->get_entrance_address();
         $return_array['port']           = $user->port;
         $return_array['protocol']       = $user->protocol;
         $return_array['protocol_param'] = $user->protocol_param;
@@ -282,7 +360,7 @@ class Node extends Model
         $return_array['remark'] = ($emoji ? Tools::addEmoji($node_name) : $node_name);
         $return_array['class']  = $this->node_class;
         $return_array['group']  = $_ENV['appName'];
-        $return_array['ratio']  = ($relay_rule != null ? $this->traffic_rate + $relay_rule->dist_node()->traffic_rate : $this->traffic_rate);
+        $return_array['ratio']  = $this->traffic_rate;
 
         return $return_array;
     }
@@ -292,16 +370,15 @@ class Node extends Model
      *
      * @param User $user
      * @param int  $mu_port
-     * @param int  $relay_rule_id
      * @param int  $is_ss
      * @param bool $emoji
      */
-    public function getV2RayItem(User $user, int $mu_port = 0, int $relay_rule_id = 0, int $is_ss = 0, bool $emoji = false): array
+    public function getV2RayItem(User $user, int $mu_port = 0, int $is_ss = 0, bool $emoji = false): array
     {
         $item           = Tools::v2Array($this->server);
         $item['type']   = 'vmess';
         $item['remark'] = ($emoji ? Tools::addEmoji($this->name) : $this->name);
-        $item['id']     = $user->getUuid();
+        $item['id']     = $user->uuid;
         $item['class']  = $this->node_class;
         return $item;
     }
@@ -311,13 +388,12 @@ class Node extends Model
      *
      * @param User $user 用户
      * @param int  $mu_port
-     * @param int  $relay_rule_id
      * @param int  $is_ss
      * @param bool $emoji
      *
      * @return array|null
      */
-    public function getV2RayPluginItem(User $user, int $mu_port = 0, int $relay_rule_id = 0, int $is_ss = 0, bool $emoji = false)
+    public function getV2RayPluginItem(User $user, int $mu_port = 0, int $is_ss = 0, bool $emoji = false)
     {
         $return_array = Tools::ssv2Array($this->server);
         // 非 AEAD 加密无法使用
@@ -356,11 +432,10 @@ class Node extends Model
      *
      * @param User $user 用户
      * @param int  $mu_port
-     * @param int  $relay_rule_id
      * @param int  $is_ss
      * @param bool $emoji
      */
-    public function getTrojanItem(User $user, int $mu_port = 0, int $relay_rule_id = 0, int $is_ss = 0, bool $emoji = false): array
+    public function getTrojanItem(User $user, int $mu_port = 0, int $is_ss = 0, bool $emoji = false): array
     {
         $server = explode(';', $this->server);
         $opt    = [];
@@ -371,7 +446,7 @@ class Node extends Model
         $item['type']     = 'trojan';
         $item['address']  = $server[0];
         $item['port']     = (isset($opt['port']) ? (int) $opt['port'] : 443);
-        $item['passwd']   = $user->getUuid();
+        $item['passwd']   = $user->uuid;
         $item['host']     = $item['address'];
         if (isset($opt['host'])) {
             $item['host'] = $opt['host'];

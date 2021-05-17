@@ -4,14 +4,10 @@ namespace App\Utils;
 
 use App\Models\{
     User,
-    Node,
-    Relay
+    Node
 };
 use App\Services\Config;
-use App\Controllers\{
-    LinkController,
-    ConfController
-};
+use App\Controllers\LinkController;
 
 class URL
 {
@@ -76,7 +72,12 @@ class URL
         return 3;
     }
 
-    public static function parse_args($origin)
+    /**
+     * parse xxx=xxx|xxx=xxx to array(xxx => xxx, xxx => xxx)
+     *
+     * @param string $origin
+     */
+    public static function parse_args($origin): array
     {
         // parse xxx=xxx|xxx=xxx to array(xxx => xxx, xxx => xxx)
         $args_explode = explode('|', $origin);
@@ -204,22 +205,22 @@ class URL
 
         switch ($Rule['type']) {
             case 'ss':
-                $sort = [0, 10, 13];
-                $is_ss = [1];
+                $sort = [0, 13];
+                $is_ss = [0];
                 break;
             case 'ssr':
-                $sort = [0, 10];
+                $sort = [0];
                 break;
             case 'vmess':
-                $sort = [11, 12];
+                $sort = [11];
                 break;
             case 'trojan':
                 $sort = [14];
                 break;
             default:
                 $Rule['type'] = 'all';
-                $sort = [0, 10, 11, 12, 13, 14];
-                $is_ss = [0, 1];
+                $sort = [0, 11, 13, 14];
+                $is_ss = [0];
                 break;
         }
 
@@ -242,15 +243,12 @@ class URL
             $mu_nodes = $mu_node_query->get();
         }
 
-        // 获取适用于用户的中转规则
-        $relay_rules = $user->getRelays();
-
         $return_array = [];
         foreach ($nodes as $node) {
             if (isset($Rule['content']['regex']) && $Rule['content']['regex'] != '') {
                 // 节点名称筛选
                 if (
-                    ConfController::getMatchProxy(
+                    ConfGenerate::getMatchProxy(
                         [
                             'remark' => $node->name
                         ],
@@ -267,10 +265,9 @@ class URL
             // 筛选 End
 
             // 其他类型单端口节点
-            if (in_array($node->sort, [11, 12, 13, 14])) {
+            if (in_array($node->sort, [11, 13, 14])) {
                 $node_class = [
                     11 => 'getV2RayItem',           // V2Ray
-                    12 => 'getV2RayItem',           // V2Ray
                     13 => 'getV2RayPluginItem',     // Rico SS (V2RayPlugin && obfs)
                     14 => 'getTrojanItem',          // Trojan
                 ];
@@ -284,22 +281,11 @@ class URL
             // 其他类型单端口节点 End
 
             // SS 节点
-            if (in_array($node->sort, [0, 10])) {
+            if (in_array($node->sort, [0])) {
                 // 节点非只启用单端口 && 只获取普通端口
                 if ($node->mu_only != 1 && ($is_mu == 0 || ($is_mu != 0 && $_ENV['mergeSub'] === true))) {
                     foreach ($is_ss as $ss) {
-                        if ($node->sort == 10) {
-                            // SS 中转
-                            $relay_rule_id = 0;
-                            $relay_rule = Tools::pick_out_relay_rule($node->id, $user->port, $relay_rules);
-                            if ($relay_rule != null && $relay_rule->dist_node() != null) {
-                                $relay_rule_id = $relay_rule->id;
-                            }
-                            $item = $node->getItem($user, 0, $relay_rule_id, $ss, $emoji);
-                        } else {
-                            // SS 非中转
-                            $item = $node->getItem($user, 0, 0, $ss, $emoji);
-                        }
+                        $item = $node->getItem($user, 0, 0, $ss, $emoji);
                         if ($item != null) {
                             $return_array[] = $item;
                         }
@@ -311,18 +297,7 @@ class URL
                 if ($node->mu_only != -1 && $is_mu != 0) {
                     foreach ($is_ss as $ss) {
                         foreach ($mu_nodes as $mu_node) {
-                            if ($node->sort == 10) {
-                                // SS 中转
-                                $relay_rule_id = 0;
-                                $relay_rule = Tools::pick_out_relay_rule($node->id, $mu_node->server, $relay_rules);
-                                if ($relay_rule != null && $relay_rule->dist_node() != null) {
-                                    $relay_rule_id = $relay_rule->id;
-                                }
-                                $item = $node->getItem($user, $mu_node->server, $relay_rule_id, $ss, $emoji);
-                            } else {
-                                // SS 非中转
-                                $item = $node->getItem($user, $mu_node->server, 0, $ss, $emoji);
-                            }
+                            $item = $node->getItem($user, $mu_node->server, 0, $ss, $emoji);
                             if ($item != null) {
                                 $return_array[] = $item;
                             }
@@ -433,7 +408,7 @@ class URL
         $item['type'] = 'vmess';
         $item['ps'] = ($emoji ? Tools::addEmoji($node->name) : $node->name);
         $item['remark'] = $item['ps'];
-        $item['id'] = $user->getUuid();
+        $item['id'] = $user->uuid;
         $item['class'] = $node->node_class;
         if (!$arrout) {
             return 'vmess://' . base64_encode(
@@ -452,30 +427,11 @@ class URL
      */
     public static function getAllVMessUrl(User $user, $arrout = false, $emoji = false)
     {
-        $nodes = self::getNodes($user, [11, 12]);
+        $nodes = self::getNodes($user, [11]);
         # 增加中转配置，后台目前配置user=0的话是自由门直接中转
         $tmp_nodes = array();
         foreach ($nodes as $node) {
             $tmp_nodes[] = $node;
-            if ($node->sort == 12) {
-                $relay_rule = Relay::where('source_node_id', $node->id)->where(
-                    static function ($query) {
-                        $query->Where('user_id', '=', 0);
-                    }
-                )->orderBy('priority', 'DESC')->orderBy('id')->first();
-                if ($relay_rule != null) {
-                    //是中转起源节点
-                    $tmp_node = $relay_rule->dist_node();
-                    $server = explode(';', $tmp_node->server);
-                    $source_server = Tools::v2Array($node->server);
-                    if (count($server) < 6) {
-                        $tmp_node->server .= str_repeat(';', 6 - count($server));
-                    }
-                    $tmp_node->server .= 'relayserver=' . $source_server['add'] . '|' . 'outside_port=' . $source_server['port'];
-                    $tmp_node->name = $node->name . '=>' . $tmp_node->name;
-                    $tmp_nodes[] = $tmp_node;
-                }
-            }
         }
         $nodes = $tmp_nodes;
         if (!$arrout) {
@@ -510,6 +466,22 @@ class URL
         }
 
         return $return_array;
+    }
+
+    /**
+     * 获取 Trojan URL
+     *
+     * @param User $user 用户
+     * @param Node $node
+     */
+    public static function get_trojan_url($user, $node): string
+    {
+        $server = $node->getTrojanItem($user);
+        $return = 'trojan://' . $server['passwd'] . '@' . $server['address'] . ':' . $server['port'];
+        if ($server['host'] != $server['address']) {
+            $return .= '?peer=' . $server['host'] . '&sni=' . $server['host'];
+        }
+        return $return . '#' . rawurlencode($node->name);
     }
 
     public static function getJsonObfs(array $item): string
